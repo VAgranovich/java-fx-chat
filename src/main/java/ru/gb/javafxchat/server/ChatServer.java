@@ -31,6 +31,32 @@ public class ChatServer {
 
     }
 
+    public void privateMessaging(String message) {
+        String[] split = message.split("\\p{Blank}+");
+        String nick1 = split[0];
+        String nick2 = split[2];
+        String message1 = split[0]+" [для " + nick2 + "] :";
+        String message2 = split[0]+":";
+
+        for (int i = 3; i < split.length; i++) {
+            message1 = message1 + " " + split[i];
+            message2 = message2 + " " + split[i];
+        }
+
+        for (ClientHandler client : clients) {
+            if (nick2.equals(client.getNick())) {
+                client.sendMessage(message2);
+            }
+
+            if (nick1.equals(client.getNick())) {
+                client.sendMessage(message1);
+            }
+
+        }
+
+
+    }
+
     public void broadcast(String message) {
         for (ClientHandler client : clients) {
             client.sendMessage(message);

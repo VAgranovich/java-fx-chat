@@ -95,13 +95,24 @@ public class ClientHandler {
     private void readMessage() {
         while (true) {
             final String message;
+            boolean check = false;
             try {
                 message = in.readUTF();
+                String[] split = message.split("\\p{Blank}+");
+                String cmd = split[0];
+
                 if ("/end".equalsIgnoreCase(message)) {
                     break;
                 }
 
-                server.broadcast(nick + ": " + message);
+                if (cmd.equals("/w")) {
+                 server.privateMessaging(nick + " " + message);
+
+                }
+                else {
+                    server.broadcast(nick + ": " + message);
+                }
+
 
             } catch (IOException e) {
                 e.printStackTrace();
