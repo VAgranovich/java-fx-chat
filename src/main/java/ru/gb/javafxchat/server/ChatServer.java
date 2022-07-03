@@ -43,17 +43,21 @@ public class ChatServer {
             message2 = message2 + " " + split[i];
         }
 
-        for (ClientHandler client : clients) {
-            if (nick2.equals(client.getNick())) {
-                client.sendMessage(message2);
-            }
+        for (ClientHandler client2 : clients) {
+            if (nick2.equals(client2.getNick())) {
+                client2.sendMessage(message2);
 
-            if (nick1.equals(client.getNick())) {
-                client.sendMessage(message1);
-            }
+                for (ClientHandler client1 : clients) {
+                    if (nick1.equals(client1.getNick())) {
+                        client1.sendMessage(message1);
+                        break;
+                    }
 
+                }
+                break;
+
+            }
         }
-
 
     }
 
