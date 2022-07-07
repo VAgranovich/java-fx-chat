@@ -7,9 +7,9 @@ import java.util.List;
 public class InMemoryAuthService implements AuthService {
 
     private static class UserData {
-        private final String nick;
-        private final String login;
-        private final String password;
+        private String nick;
+        private String login;
+        private String password;
 
         public UserData(String nick, String login, String password) {
             this.nick = nick;
@@ -34,26 +34,23 @@ public class InMemoryAuthService implements AuthService {
 
     public InMemoryAuthService() {
         users = new ArrayList<>();
-        for (int i=0; i<5; i++) {
-            users.add(new UserData("nick"+i, "login"+i, "pass"+i));
+        for (int i = 0; i < 5; i++) {
+            users.add(new UserData("nick" + i, "login" + i, "pass" + i));
         }
-
     }
 
     @Override
     public String getNickByLoginAndPassword(String login, String password) {
-        for (UserData user : users) {
-            if (login.equals(user.getLogin()) && password.equals(user.getPassword())) {
-                return user.getNick();
-            }
-        }
-        return null;
+        return users.stream()
+                .filter(user -> login.equals(user.getLogin())
+                        && password.equals(user.getPassword()))
+                .findFirst()
+                .map(UserData::getNick)
+                .orElse(null);
     }
-
 
     @Override
     public void close() throws IOException {
         System.out.println("Сервис аутентификации остановлен");
     }
-
 }

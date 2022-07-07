@@ -1,10 +1,20 @@
 package ru.gb.javafxchat.client;
 
+import static ru.gb.javafxchat.Command.AUTHOK;
+import static ru.gb.javafxchat.Command.CLIENTS;
+import static ru.gb.javafxchat.Command.END;
+import static ru.gb.javafxchat.Command.ERROR;
+import static ru.gb.javafxchat.Command.MESSAGE;
+import static ru.gb.javafxchat.Command.STOP;
+import static ru.gb.javafxchat.Command.getCommand;
+
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+
+import javafx.application.Platform;
+import ru.gb.javafxchat.Command;
 
 public class ChatClient {
 
@@ -16,7 +26,6 @@ public class ChatClient {
 
     public ChatClient(ChatController controller) {
         this.controller = controller;
-
     }
 
     public void openConnection() throws IOException {
@@ -25,64 +34,103 @@ public class ChatClient {
         out = new DataOutputStream(socket.getOutputStream());
         new Thread(() -> {
             try {
-                waitAuth();
-                readMessages();
+                if (waitAuth()) {
+                    readMessages();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
                 closeConnection();
             }
-
-        }
-        ).start();
-
-
+        }).start();
 
     }
 
-    private void waitAuth() throws IOException {
+    private boolean waitAuth() throws IOException {
         while (true) {
             final String message = in.readUTF();
-            if (message.startsWith("/authok")) {
-                String[] split = message.split("\\p{Blank}+");
-                String nick = split[1];
+            final Command command = getCommand(message);
+            final String[] params = command.parse(message);
+            if (command == AUTHOK) { // /authok nick1
+                final String nick = params[0];
                 controller.setAuth(true);
-                controller.addMessage("Успешная авторизация под ником "+ nick);
-                break;
-            } else {
-                controller.addMessage(message);
+                controller.addMessage("Успешная авторизация под ником " + nick);
+                return true;
+            }
+            if (command == ERROR) {
+                Platform.runLater(() -> controller.showError(params[0]));
+                continue;
+            }
+            if (command == STOP) {
+                Platform.runLater(() -> controller.showError("Истекло время на авторизацию, перезапустите приложение"));
+                try {
+                    Thread.sleep(5000);
+                    sendMessage(END);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                return false;
             }
         }
     }
 
     private void closeConnection() {
-        try {
-            in.close();
-            out.close();
-            socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (in != null) {
+            try {
+                in.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+        if (out != null) {
+            try {
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        System.exit(0);
     }
 
     private void readMessages() throws IOException {
         while (true) {
             final String message = in.readUTF();
-            if ("/end".equalsIgnoreCase(message)) {
+            final Command command = getCommand(message);
+            if (END == command) {
                 controller.setAuth(false);
                 break;
             }
-            controller.addMessage(message);
-
+            final String[] params = command.parse(message);
+            if (ERROR == command) {
+                String messageError = params[0];
+                Platform.runLater(() -> controller.showError(messageError));
+                continue;
+            }
+            if (MESSAGE == command) {
+                Platform.runLater(() -> controller.addMessage(params[0]));
+            }
+            if (CLIENTS == command) {
+                Platform.runLater(() -> controller.updateClientsList(params));
+            }
         }
     }
 
-    public void sendMessage(String s) {
+    private void sendMessage(String message) {
         try {
-            out.writeUTF(s);
+            out.writeUTF(message);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
+    public void sendMessage(Command command, String... params) {
+        sendMessage(command.collectMessage(params));
     }
 }
